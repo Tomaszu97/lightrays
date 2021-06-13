@@ -10,7 +10,7 @@
 
 #define RAND_MAX 255
 
-// #define HD_MODE
+//#define HD_MODE
 #ifndef HD_MODE
     #define WINDOW_WIDTH 320
     #define WINDOW_HEIGHT 240
@@ -28,7 +28,6 @@ SDL_Window *window;
 Uint32 lastTicks;
 
 int reflectionDepth = 5;
-float reflectionNoise = 0.1;
 bool moveCam = true;
 /* //globals */
 
@@ -53,10 +52,42 @@ typedef struct {
     float plane_h;
 } camera;
 
+typedef enum {
+    GENERIC_SOLID,
+    LIGHT_SOURCE,
+    BLACK_HOLE,
+    MIRROR,
+    SHINY,
+    MATT,
+    GLASS
+} material_type;
+
+float material_type_diffuse_factor[] = {
+    0.05,
+    0.0,
+    0.0,
+    0.0,
+    0.01,
+    0.3,
+    0.0
+};
+
+/* #TODO instead of handling color amount by level, mix and decrease it according to values below  */
+float material_type_color_mix_amount[] = {
+    0.7,
+    1.0,
+    0.0,
+    0.0,
+    0.4,
+    0.8,
+    0.0
+};
+
 typedef struct {
     vec3 pos;
     float r;
     vec3 color;
+    material_type material;
 } sphere;
 
 typedef struct {
@@ -67,15 +98,19 @@ typedef struct {
 
 /* scene */
 sphere spheres[] = {
-{   .pos={-2200, 300, -2400},    .r=1450,    .color={130,0,58}  },
-{   .pos={0, 0, -3000},        .r=450,     .color={220,180,0}  },
-{   .pos={2200, -300, -4500},  .r=1450,    .color={10,10,80}  },
-{   .pos={0, -102000, -3000},  .r=100000,  .color={10,150,90}  },
+{   .pos={-3000, 0, -3000},          .r=450,     .color={220,180,0},   .material=GENERIC_SOLID    },
+{   .pos={-2000, 0, -3000},          .r=450,     .color={255,255,255}, .material=LIGHT_SOURCE     },
+{   .pos={-1000, 0, -3000},          .r=450,     .color={0,0,0},       .material=BLACK_HOLE       },
+{   .pos={0, 0, -3000}    ,          .r=450,     .color={220,0,110},   .material=MIRROR           },
+{   .pos={1000, 0, -3000},           .r=450,     .color={70,180,20},   .material=SHINY            },
+{   .pos={2000, 0, -3000},           .r=450,     .color={10,0,190},    .material=MATT             },
+{   .pos={3000, 0, -3000},           .r=450,     .color={20,10,90},    .material=GLASS            },
+{   .pos={0, -102000, -3000},        .r=100000,  .color={10,150,90},   .material=GENERIC_SOLID    },
 };
 
-float floatingSpeeds[] = {5,10,15};
+/*float floatingSpeeds[] = {5,10,15};
 float floatingMin = -300;
-float floatingMax = 700;
+float floatingMax = 700;*/
 
 /*float groundPlane[] = { 
     -1000, -500, -1000,
@@ -93,16 +128,20 @@ camera cam = {  .pos={100, 100, 900},
                 .plane_w=WINDOW_WIDTH,
                 .plane_h=WINDOW_HEIGHT,
                 #ifndef HD_MODE
-                .plane_dist=110,
+                .plane_dist=90,
                 #else
                 .plane_dist=500,
                 #endif
 };
 
+/*
 float camFloatingSpeed[] = {20, 9, 15};
 float camFloatingMin[] = {-2000, -500, -300};
 float camFloatingMax[] = {1300, 500, 900};
-
+float camRotSpeed[] = {0.004, 0.007, 0.001};
+float camRotMin[] = {-0.3, -0.3, -0.2};
+float camRotMax[] = {0.3, 0.3, 0.2};
+*/
 lightsource light_ = {.pos={50,50,50}, .intensity=128};
 /* //scene */
 
@@ -161,6 +200,7 @@ void rayBackgroundColor(ray ray_, vec3 color){
 }
 
 void randomUnitVector(vec3 vector) {
+    /* experiment with other (Lambertian and non-Lambertian) distributions*/
     vector[0] = (float)rand()/RAND_MAX*2-1;
     vector[1] = (float)rand()/RAND_MAX*2-1;
     vector[2] = (float)rand()/RAND_MAX*2-1;
@@ -179,7 +219,21 @@ void drawPixel(int x, int y, int r, int g, int b){
     SDL_RenderFillRect(renderer, &(SDL_Rect){.x=x*WINDOW_SCALE, .y=y*WINDOW_SCALE, .w=WINDOW_SCALE, .h=WINDOW_SCALE});
 }       
 
-void traceRay(ray ray_, vec3 outColor,int level){
+void bounceRay(ray oldRay, hitRecord hitRecord_, ray nextRay, vec3 outColor, vec3 inColor, material_type material, int level){
+    
+        memcpy(nextRay.pos, hitRecord_.pos, sizeof(vec3));
+    if(material_type_diffuse_factor[material] == 0.0){
+        glm_vec3_add(oldRay.dir, hitRecord_.normal, nextRay.dir);
+        glm_vec3_add(nextRay.dir, hitRecord_.normal, nextRay.dir);
+
+    }
+    else{
+        memcpy(nextRay.dir, hitRecord_.normal, sizeof(vec3));
+        addNoiseToUnitVector(nextRay.dir, material_type_diffuse_factor[material], nextRay.dir); 
+    }
+}
+
+void traceRay(ray ray_, vec3 outColor, int level){
     if(++level > reflectionDepth) return;
 
     hitRecord hitRecord_;
@@ -189,7 +243,7 @@ void traceRay(ray ray_, vec3 outColor,int level){
     
     //optimize it
     for(int i=0; i<sphereCount; i++){ 
-        if (hitSphere(ray_, spheres[i], 1, 999999, &hitRecord_)){    
+        if (hitSphere(ray_, spheres[i], 0.1, 999999, &hitRecord_)){    
             if(hitRecord_.t < smallestT){
                 smallestT = hitRecord_.t;
                 closestSphereIndex = i;
@@ -197,30 +251,26 @@ void traceRay(ray ray_, vec3 outColor,int level){
         }
     }
    
-    float  colorMixAmount = 0.7f / (float)level;
+    float  colorMixAmount = 0;
 
     if(closestSphereIndex == -1){
         vec3 bgColor;
         rayBackgroundColor(ray_, bgColor); 
         glm_vec3_smoothinterp(outColor, 
                               bgColor, 
-                              colorMixAmount, 
+                              0.7f / (float)level, 
                               outColor);
         return;
     }
 
     hitSphere(ray_, spheres[closestSphereIndex], 1, 999999, &hitRecord_);
-    if(hitRecord_.isFrontFace){
+    if(hitRecord_.isFrontFace){ 
         glm_vec3_smoothinterp(outColor, 
-                              spheres[closestSphereIndex].color, 
-                              colorMixAmount, 
+                              spheres[closestSphereIndex].color,
+                              material_type_color_mix_amount[spheres[closestSphereIndex].material] / (float)level, 
                               outColor);
-
-        //randomize ray reflection direction
         ray nextRay;
-        memcpy(nextRay.dir, hitRecord_.normal, sizeof(vec3));
-        memcpy(nextRay.pos, hitRecord_.pos, sizeof(vec3));
-        addNoiseToUnitVector(nextRay.dir, reflectionNoise, nextRay.dir);
+        bounceRay(ray_, hitRecord_, nextRay, outColor, spheres[closestSphereIndex].color, spheres[closestSphereIndex].material, level);
         traceRay(nextRay, outColor, level);
     }
     else{
@@ -254,6 +304,9 @@ int main(void) {
                 ray ray_;
                 memcpy(ray_.pos, cam.pos, sizeof(ray_.pos));
                 memcpy(ray_.dir, (vec3){x-(cam.plane_w/2), y-(cam.plane_h/2), -cam.plane_dist}, sizeof(ray_.dir));
+                glm_vec3_rotate(ray_.dir, cam.rot[0], (vec3){1.0f,0.0f,0.0f});
+                glm_vec3_rotate(ray_.dir, cam.rot[1], (vec3){0.0f,1.0f,0.0f});
+                glm_vec3_rotate(ray_.dir, cam.rot[2], (vec3){0.0f,0.0f,1.0f});
                 glm_vec3_normalize(ray_.dir);
                 
                 vec3 color = {-1, -1, -1};
@@ -264,7 +317,7 @@ int main(void) {
         SDL_RenderPresent(renderer);
 
         int deltaT = lastTicks/100;
-        float step = (float) lastTicks/50;
+        float step = (float) lastTicks/100;
         if (SDL_PollEvent(&event)){
             switch(event.type){
                 case SDL_QUIT:
@@ -301,22 +354,30 @@ int main(void) {
             cam.pos[2] += step;
             moveCam = false;
         }   
+        if(state[SDL_SCANCODE_V]){
+            cam.rot[0] += step/10000;
+        }
+        if(state[SDL_SCANCODE_F]){
+            cam.rot[0] -= step/10000;
+        }
+        if(state[SDL_SCANCODE_X]){
+            cam.rot[1] += step/10000;
+        }
+        if(state[SDL_SCANCODE_B]){
+            cam.rot[2] -= step/10000;
+        }
+        if(state[SDL_SCANCODE_N]){
+            cam.rot[2] += step/10000;
+        }
+        if(state[SDL_SCANCODE_C]){
+            cam.rot[1] -= step/10000;
+        }
         if(state[SDL_SCANCODE_Q]){
-            cam.plane_dist -= step/5;
+            cam.plane_dist -= step/30;
             usleep(10000);
         }
         if(state[SDL_SCANCODE_W]){
-            cam.plane_dist += step/5;
-            usleep(10000);
-        }
-        if(state[SDL_SCANCODE_K]){
-            reflectionNoise -= 0.01;
-            if(reflectionNoise < 0) reflectionNoise=0.0;
-            usleep(10000);
-        }
-        if(state[SDL_SCANCODE_L]){
-            reflectionNoise += 0.01;
-            if(reflectionNoise > 0.4999) reflectionNoise=0.499;
+            cam.plane_dist += step/30;
             usleep(10000);
         }
         if(state[SDL_SCANCODE_O]){
@@ -329,16 +390,20 @@ int main(void) {
             usleep(100000);
         }  
         
-        for(int i=0; i<3; i++){
+/*        for(int i=0; i<3; i++){
             spheres[i].pos[1] += floatingSpeeds[i];
             if(spheres[i].pos[1] < floatingMin || spheres[i].pos[1] > floatingMax) floatingSpeeds[i] *= -1; 
 
             if(moveCam){
                 cam.pos[i] += camFloatingSpeed[i];
                 if(cam.pos[i] < camFloatingMin[i] || cam.pos[i] > camFloatingMax[i]) camFloatingSpeed[i] *= -1;
+                
+                cam.rot[i] += camRotSpeed[i];
+                if(cam.rot[i] < camRotMin[i] || cam.rot[i] > camRotMax[i]) camRotSpeed[i] *= -1;
+
             }
         }       
-
+*/
         lastTicks = SDL_GetTicks();
     }    
 }
