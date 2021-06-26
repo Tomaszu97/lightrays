@@ -9,7 +9,7 @@
 
 #undef  RAND_MAX
 #define RAND_MAX 255
-#define MAX_REFLECTION_DEPTH 5
+#define MAX_REFLECTION_DEPTH 10
 
 
 SDL_Event event;
@@ -90,17 +90,17 @@ void lambertianReflection(vec3 in, vec3 normal, float amount, vec3 out)
     glm_vec3_normalize(out);//might not be needed here
 }
 
-void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outwardNormal)
+void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
 {
-    hit_record->is_front_face = glm_vec3_dot(ray_.dir, outwardNormal) < 0;
+    hit_record->is_front_face = glm_vec3_dot(ray_.dir, outward_normal) < 0;
     if(hit_record->is_front_face)
     {
-        memcpy(hit_record->normal, outwardNormal, sizeof(vec3));
+        memcpy(hit_record->normal, outward_normal, sizeof(vec3));
     }
     else
     {
         vec3 tmp;
-        glm_vec3_scale(outwardNormal, -1.0, tmp);
+        glm_vec3_scale(outward_normal, -1.0, tmp);
         memcpy(hit_record->normal, tmp, sizeof(vec3));
     }
 }
@@ -146,11 +146,23 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
 
     if(material == GLASS)
     {
-        //TODO implement snells law
-        vec3 tmp;
-        glm_vec3_scale(hit_record.normal, 0.0, tmp);
-        glm_vec3_add(ray_.dir, tmp, next_ray->dir);
-        glm_vec3_normalize(next_ray->dir);
+        float refl_coeff = 1.52;    // window glass
+        //float refl_coeff = 2.417;   // diamond
+        //float refl_coeff = 1.333;   // water
+        if(hit_record.is_front_face) refl_coeff = 1/refl_coeff;
+        vec3 r_perp;
+        vec3 r_paral;
+        glm_vec3_negate_to(ray_.dir, r_perp); //use this in other places
+        float cos_theta = glm_vec3_dot(r_perp, hit_record.normal); //fmin with 1.0 maybe?
+        glm_vec3_scale(hit_record.normal, cos_theta, r_perp);
+        glm_vec3_add(ray_.dir, r_perp, r_perp);
+        glm_vec3_scale(r_perp, refl_coeff, r_perp);
+
+        float r_perp_len2 = glm_vec3_distance2((vec3){0,0,0}, r_perp);
+        glm_vec3_scale(hit_record.normal, -sqrt(fabsf(1-r_perp_len2)), r_paral);
+
+        glm_vec3_add(r_perp, r_paral, next_ray->dir);
+
     }
     else
     {
@@ -167,6 +179,8 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
 
     if(material == MIRROR)
         next_ray->strength = ray_.strength *0.9;
+    else if(material == GLASS)
+        next_ray->strength = ray_.strength *0.9;
     else
         next_ray->strength = ray_.strength * 0.6;
     return true;
@@ -174,7 +188,7 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
 
 void traceRay(ray ray_, vec3 out_color, int level)
 {
-    if(++level > MAX_REFLECTION_DEPTH) return;
+    if(++level > MAX_REFLECTION_DEPTH || ray_.strength < 0.1) return;
 
     //TODO handle multiple object types
     const float closest_intersection = 0.1;
@@ -207,8 +221,7 @@ void traceRay(ray ray_, vec3 out_color, int level)
     hitSphere(ray_, *(sphere*)(scene_objects[closest_sphere_index].obj_ptr), closest_intersection,
               FLT_MAX, &hit_record);
 
-    //if(hit_record.is_front_face || ((sphere*)(scene_objects[closest_sphere_index].obj_ptr))->material == GLASS)
-    if(true)
+    if(hit_record.is_front_face || ((sphere*)(scene_objects[closest_sphere_index].obj_ptr))->material == GLASS)
     {
         ray next_ray;
         if(!bounceRay(ray_,

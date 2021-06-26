@@ -31,7 +31,7 @@ float material_type_color_mix_amount[] =
     0.01,
     0.7,
     0.8,
-    0.6
+    0.55
 };
 
 #endif

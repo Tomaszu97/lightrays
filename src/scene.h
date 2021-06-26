@@ -3,9 +3,9 @@
 
 #include "objects.h"
 
-#define WINDOW_WIDTH 320
-#define WINDOW_HEIGHT 240
-#define WINDOW_SCALE 4
+#define WINDOW_WIDTH 192
+#define WINDOW_HEIGHT 100
+#define WINDOW_SCALE 10
 
 camera cam =
 {
@@ -24,7 +24,7 @@ sphere spheres[] =
   { .pos={0, 0, -3000},       .r=450,    .color={220,0,110},   .material=MIRROR        },
   { .pos={1000, 0, -3000},    .r=450,    .color={70,180,20},   .material=SHINY         },
   { .pos={2000, 0, -3000},    .r=450,    .color={10,0,190},    .material=MATT          },
-  { .pos={3000, 0, -3000},    .r=450,    .color={200,200,10},  .material=GLASS         },
+  { .pos={3000, 0, -3000},    .r=450,    .color={200,20,160},  .material=GLASS         },
   { .pos={0, -102000, -3000}, .r=100000, .color={10,150,90},   .material=GENERIC_SOLID },
 };
 
