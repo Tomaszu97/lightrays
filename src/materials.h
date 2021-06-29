@@ -1,6 +1,6 @@
 #ifndef MATERIALS_H
 #define MATERIALS_H
-
+#define float double
 typedef enum
 {
     GENERIC_SOLID,

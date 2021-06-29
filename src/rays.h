@@ -17,10 +17,12 @@ SDL_Renderer *renderer;
 SDL_Window *window;
 extern sceneObject scene_objects[];
 
+// add color to ray itself
 typedef struct
 {
     vec3 pos;
     vec3 dir; //keep normalized!
+    vec3 color;
     float strength;
 } ray;
 
@@ -32,7 +34,7 @@ typedef struct
     bool is_front_face;
 } hitRecord;
 
-void exit_procedure()
+void exitProcedure()
 {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -64,7 +66,7 @@ void randomUnitVector(vec3 vector)
     glm_vec3_normalize(vector);
 }
 
-void rayBackgroundColor(ray ray_, vec3 color)
+void rayToBackgroundColor(ray ray_, vec3 color)
 {
     float blend = (ray_.dir[1]+1)/2;
     glm_vec3_smoothinterp((vec3)
@@ -83,11 +85,12 @@ void lambertianReflection(vec3 in, vec3 normal, float amount, vec3 out)
     glm_vec3_add(normal, lamb_vec, lamb_vec);
 
     vec3 refl_vec;
-    glm_vec3_add(in, normal, refl_vec);
-    glm_vec3_add(refl_vec, normal, refl_vec);
+    float dot = glm_vec3_dot(in, normal);
+    glm_vec3_scale(normal, 2.0f*dot, refl_vec);
+    glm_vec3_sub(in, refl_vec, refl_vec);
 
     glm_vec3_smoothinterp(refl_vec, lamb_vec, amount, out);
-    glm_vec3_normalize(out);//might not be needed here
+    glm_vec3_normalize(out);
 }
 
 void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
@@ -146,8 +149,8 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
 
     if(material == GLASS)
     {
-        float refl_coeff = 1.52;    // window glass
-        //float refl_coeff = 2.417;   // diamond
+        //float refl_coeff = 1.52;    // window glass
+        float refl_coeff = 2.417;   // diamond
         //float refl_coeff = 1.333;   // water
         if(hit_record.is_front_face) refl_coeff = 1/refl_coeff;
         vec3 r_perp;
@@ -213,7 +216,7 @@ void traceRay(ray ray_, vec3 out_color, int level)
     if(closest_sphere_index == -1)
     {
         vec3 bg_color;
-        rayBackgroundColor(ray_, bg_color);
+        rayToBackgroundColor(ray_, bg_color);
         glm_vec3_smoothinterp(out_color, bg_color, ray_.strength, out_color);
         return;
     }
@@ -237,9 +240,14 @@ void traceRay(ray ray_, vec3 out_color, int level)
     }
     else
     {
-        out_color[0]=255;
-        out_color[1]=0;
-        out_color[2]=255;
+        // passthrough in the middle
+        memcpy(ray_.pos, hit_record.pos, sizeof(vec3));
+        traceRay(ray_, out_color, level);
+
+        //solid color in the middle
+        // out_color[0]=255;
+        // out_color[1]=0;
+        // out_color[2]=255;
     }
 
 }
