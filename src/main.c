@@ -26,21 +26,37 @@ int main(void)
         {
             for (int x=0; x<WINDOW_WIDTH; x+=1)
             {
-                //TODO fix this - not working
-                vec3 color = {0, 0, 0};
-                for (int i=0; i<ANTIALIASING_LEVEL; i++)
+                vec3 color[ANTIALIASING_LEVEL];
+                for (int i=0; i<ANTIALIASING_LEVEL*ANTIALIASING_LEVEL; i++)
                 {
                     ray ray_ = { .strength = 0.7f };
                     memcpy(ray_.pos, cam.pos, sizeof(ray_.pos));
-                    memcpy(ray_.dir, (vec3){ ((float)x+((float)i/ANTIALIASING_LEVEL))-(cam.plane_w/2), ((float)y+((float)i/ANTIALIASING_LEVEL))-(cam.plane_h/2), -cam.plane_dist }, sizeof(ray_.dir));
+
+                    float aa_step = 1.0f / (ANTIALIASING_LEVEL+1.0f);
+                    memcpy(ray_.dir, (vec3){ x+(aa_step*(float)(i%ANTIALIASING_LEVEL))-(cam.plane_w/2), y+(aa_step*(float)((int)i/(int)ANTIALIASING_LEVEL))-(cam.plane_h/2), -cam.plane_dist }, sizeof(ray_.dir));
                     glm_vec3_rotate(ray_.dir, cam.rot[0], (vec3){ 1.0f, 0.0f, 0.0f });
                     glm_vec3_rotate(ray_.dir, cam.rot[1], (vec3){ 0.0f, 1.0f, 0.0f });
                     glm_vec3_rotate(ray_.dir, cam.rot[2], (vec3){ 0.0f, 0.0f, 1.0f });
                     glm_vec3_normalize(ray_.dir);
 
-                    traceRay(ray_, color, 0);
+                    memcpy(color[i], (vec3){0.0f, 0.0f, 0.0f}, sizeof(vec3));
+                    traceRay(ray_, color[i], 0);
                 }
-                drawPixel(x, WINDOW_HEIGHT-1-y, color[0], color[1], color[2]);
+
+                vec3 avg_color = {0.0f, 0.0f, 0.0f};
+                for (int i=0; i<ANTIALIASING_LEVEL; i++)
+                {
+                    for(int j=0; j<3; j++)
+                    {
+                        avg_color[j] += color[i][j];
+                    }
+                }
+                for(int i=0; i<3; i++)
+                {
+                    avg_color[i] /= ANTIALIASING_LEVEL;
+                }
+
+                drawPixel(x, WINDOW_HEIGHT-1-y, avg_color[0], avg_color[1], avg_color[2]);
             }
         }
         SDL_RenderPresent(renderer);

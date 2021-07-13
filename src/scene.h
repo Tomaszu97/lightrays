@@ -3,15 +3,15 @@
 
 #include "objects.h"
 
-#define WINDOW_WIDTH 1920
-#define WINDOW_HEIGHT 1080
+#define WINDOW_WIDTH 192
+#define WINDOW_HEIGHT 108
 #define ANTIALIASING_LEVEL 1
-#define WINDOW_SCALE 1
+#define WINDOW_SCALE 4
 
 camera cam =
 {
     .pos={2082, -874, -12500},
-    .rot={-0.28, 2.2, 0.0},
+    .rot={-0.28, /*2.2*/0.0, 0.0},
     .plane_w=WINDOW_WIDTH,
     .plane_h=WINDOW_HEIGHT,
     .plane_dist=(WINDOW_WIDTH+WINDOW_HEIGHT)/2*0.5,
