@@ -23,7 +23,8 @@ typedef struct
 typedef struct
 {
     vec3 pos;
-    vec3 rot;
+    vec3 dir;
+    vec3 dir_up;
     float plane_dist;
     float plane_w;
     float plane_h;
