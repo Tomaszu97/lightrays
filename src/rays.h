@@ -1,10 +1,11 @@
 #ifndef RAYS_H
 #define RAYS_H
 
+#include <SDL2/SDL.h>
+#include <math.h>
 #include "cglm/cglm.h"
 #include "cglm/struct.h"
 #include "cglm/call.h"
-#include <SDL2/SDL.h>
 #include "scene.h"
 
 #undef  RAND_MAX
@@ -66,7 +67,7 @@ void randomUnitVector(vec3 vector)
     glm_vec3_normalize(vector);
 }
 
-void rayToBackgroundColor(ray ray_, vec3 color)
+void rayToBackgroundColor(ray ray_, vec3 *color)
 {
     float blend = (ray_.dir[1]+1)/2;
     glm_vec3_smoothinterp((vec3)
@@ -75,7 +76,7 @@ void rayToBackgroundColor(ray ray_, vec3 color)
     },(vec3)
     {
         128,178,255
-    }, blend, color);
+    }, blend, *color);
 }
 
 void lambertianReflection(vec3 in, vec3 normal, float amount, vec3 out)
@@ -108,21 +109,88 @@ void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
     }
 }
 
-void getSphereOutwardNormal(vec3 point, sphere sphere_, vec3 destNormal)
+void getSphereOutwardNormal(vec3 point, sceneObject scene_object, vec3 destNormal)
 {
-    vec3 tmp;
-    glm_vec3_sub(point, sphere_.pos, tmp);
-    glm_vec3_divs(tmp, sphere_.r, tmp);
-    memcpy(destNormal, tmp, sizeof(vec3));
+    vec3 tmpvec;
+    glm_vec3_sub(point, scene_object.pos, tmpvec);
+    glm_vec3_divs(tmpvec, ((sphere*)scene_object.obj_ptr)->r, tmpvec);
+    memcpy(destNormal, tmpvec, sizeof(vec3));
 }
 
-bool hitSphere(ray ray_, sphere sphere_, float tmin, float tmax, hitRecord *hit_record)
+
+bool hitPolygonMesh(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
+{
+    //   1     |  Q*E2 |
+    //  ---- * |  P*T  |
+    //  P*E1   |  Q*D  |
+
+    //TODO handle rotation, scale etc
+    //TODO change TUV to 3 separate vals?
+
+    vec3 e1, e2, t, q, p, tuv, tmpvec;
+    float det;
+    hitRecord nearest_hit = { .t=FLT_MAX };
+
+    for(size_t i=0; ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i] != -1 ;)
+    {
+        int idx0 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
+        int idx1 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
+        int idx2 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
+
+        glm_vec3_sub(((polygonMesh*)scene_object.obj_ptr)->vertices[idx1], ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], e1);
+        glm_vec3_sub(((polygonMesh*)scene_object.obj_ptr)->vertices[idx2], ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], e2);
+        glm_vec3_cross(ray_.dir, e2, p);
+        det = glm_vec3_dot(p, e1);
+        if(det > -tmin && det < tmin) continue;
+        bool is_front_face = false;
+        if(det < 0) is_front_face = true;
+
+        det = 1 / det;
+        glm_vec3_sub(ray_.pos, ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], t);
+
+        //u
+        tuv[1] = glm_vec3_dot(p, t);
+        tuv[1] = tuv[1] * det;
+        if (tuv[1] < 0.0 || tuv[1] > 1.0) continue;
+
+        //v
+        glm_vec3_cross(t, e1, q);
+        tuv[2] = glm_vec3_dot(q, ray_.dir);
+        tuv[2] = tuv[2] * det;
+        if (tuv[2] < 0.0 || (tuv[1]+tuv[2]) > 1.0) continue;
+
+        //t
+        tuv[0] = glm_vec3_dot(q, e2);
+        tuv[0] = tuv[0] * det;
+
+        if(tuv[0] < tmin) continue;
+
+        if(tuv[0] < nearest_hit.t)
+        {
+            nearest_hit.t = tuv[0];
+            nearest_hit.is_front_face = is_front_face;
+            glm_vec3_scale(ray_.dir, nearest_hit.t, tmpvec);
+            glm_vec3_add(ray_.pos, tmpvec, nearest_hit.pos);
+            glm_vec3_crossn(e1, e2, nearest_hit.normal); //leave this only
+
+        }
+    }
+
+    if(nearest_hit.t == FLT_MAX) return false;
+    else
+    {
+        memcpy(hit_record, &nearest_hit, sizeof(hitRecord));
+        return true;
+    }
+}
+
+bool hitSphere(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
 {
     vec3 oc;
-    glm_vec3_sub(ray_.pos, sphere_.pos, oc);
+    glm_vec3_sub(ray_.pos, scene_object.pos, oc);
     float a = glm_vec3_norm2(ray_.dir);
     float half_b = glm_vec3_dot(oc, ray_.dir);
-    float c = glm_vec3_norm2(oc) - (sphere_.r*sphere_.r);
+    float c = glm_vec3_norm2(oc) - pow(((sphere*)scene_object.obj_ptr)->r, 2);
 
     float discriminant = half_b*half_b - a*c;
     if (discriminant < 0) return false;
@@ -137,20 +205,20 @@ bool hitSphere(ray ray_, sphere sphere_, float tmin, float tmax, hitRecord *hit_
     hit_record->t = root;
     rayPosAt(hit_record->t, ray_, hit_record->pos);
     vec3 outwardNormal;
-    getSphereOutwardNormal(hit_record->pos, sphere_, outwardNormal);
+    getSphereOutwardNormal(hit_record->pos, scene_object, outwardNormal);
     setFrontFaceAndNormal(ray_, hit_record, outwardNormal);
     return true;
 }
 
-bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord hit_record,  materialType material, int level)
+bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord hit_record,  materialType material)
 {
     // reflect ray (position)
     memcpy(next_ray->pos, hit_record.pos, sizeof(vec3));
 
     if(material == GLASS)
     {
-        //float refl_coeff = 1.52;    // window glass
-        float refl_coeff = 2.417;   // diamond
+        float refl_coeff = 1.52;    // window glass
+        //float refl_coeff = 2.417;   // diamond
         //float refl_coeff = 1.333;   // water
         if(hit_record.is_front_face) refl_coeff = 1/refl_coeff;
         vec3 r_perp;
@@ -193,63 +261,79 @@ void traceRay(ray ray_, vec3 out_color, int level)
 {
     if(++level > MAX_REFLECTION_DEPTH || ray_.strength < 0.1) return;
 
-    //TODO handle multiple object types
     const float closest_intersection = 0.1;
     float smallest_t = FLT_MAX;
-    int closest_sphere_index = -1;
+    int closest_obj_index = -1;
     hitRecord hit_record;
 
+    //TODO handle more object types
+    //TODO refactor, optimize this loop
     for(int i=0; scene_objects[i].obj_ptr != NULL; i++)
     {
-        if (scene_objects[i].obj_type != SPHERE) continue;
-
-        if (hitSphere(ray_, *(sphere*)(scene_objects[i].obj_ptr), closest_intersection, FLT_MAX, &hit_record))
+        if(scene_objects[i].obj_type == SPHERE)
         {
-            if(hit_record.t < smallest_t)
+            if(hitSphere(ray_, scene_objects[i], closest_intersection, FLT_MAX, &hit_record))
             {
-                smallest_t = hit_record.t;
-                closest_sphere_index = i;
+                if(hit_record.t < smallest_t)
+                {
+                    smallest_t = hit_record.t;
+                    closest_obj_index = i;
+                }
+            }
+        }
+        else if(scene_objects[i].obj_type == POLYGON_MESH)
+        {
+            if(hitPolygonMesh(ray_, scene_objects[i], closest_intersection, FLT_MAX, &hit_record))
+            {
+                if(hit_record.t < smallest_t)
+                {
+                    smallest_t = hit_record.t;
+                    closest_obj_index = i;
+                }
             }
         }
     }
 
-    if(closest_sphere_index == -1)
+    if(closest_obj_index == -1)
     {
         vec3 bg_color;
-        rayToBackgroundColor(ray_, bg_color);
+        rayToBackgroundColor(ray_, &bg_color);
         glm_vec3_smoothinterp(out_color, bg_color, ray_.strength, out_color);
         return;
     }
 
-    hitSphere(ray_, *(sphere*)(scene_objects[closest_sphere_index].obj_ptr), closest_intersection,
-              FLT_MAX, &hit_record);
+    //TODO all objects
+    if(scene_objects[closest_obj_index].obj_type == SPHERE)
+        hitSphere(ray_, scene_objects[closest_obj_index], closest_intersection, FLT_MAX, &hit_record);
+    else if(scene_objects[closest_obj_index].obj_type == POLYGON_MESH)
+        hitPolygonMesh(ray_, scene_objects[closest_obj_index], closest_intersection, FLT_MAX, &hit_record);
 
-    if(hit_record.is_front_face || ((sphere*)(scene_objects[closest_sphere_index].obj_ptr))->material == GLASS)
+    //refactor, optimize
+    if(hit_record.is_front_face || scene_objects[closest_obj_index].material == GLASS)
     {
         ray next_ray;
         if(!bounceRay(ray_,
                      &next_ray,
-                     ((sphere*)(scene_objects[closest_sphere_index].obj_ptr))->color,
+                     scene_objects[closest_obj_index].color,
                      out_color,
                      hit_record,
-                     ((sphere*)(scene_objects[closest_sphere_index].obj_ptr))->material,
-                     level)
+                     scene_objects[closest_obj_index].material)
            ) return;
 
         traceRay(next_ray, out_color, level);
     }
     else
     {
-        // passthrough in the middle
+        // passthrough
         memcpy(ray_.pos, hit_record.pos, sizeof(vec3));
         traceRay(ray_, out_color, level);
 
-        //solid color in the middle
-        // out_color[0]=255;
-        // out_color[1]=0;
-        // out_color[2]=255;
+        // solid color
+        //out_color[0]=255;
+        //out_color[1]=0;
+        //out_color[2]=255;
+        return;
     }
-
 }
 
 #endif
