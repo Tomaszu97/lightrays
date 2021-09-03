@@ -1,59 +1,5 @@
-#ifndef OBJECTS_H
-#define OBJECTS_H
-
+#include "objects.h"
 #include "cglm/cglm.h"
-#include "cglm/struct.h"
-#include "materials.h"
-
-typedef enum
-{
-    CAMERA,
-    SPHERE,
-    POLYGON_MESH,
-    WIRE,
-    LIGHT_SOURCE
-} objectType;
-
-typedef struct
-{
-    void *obj_ptr;
-    objectType obj_type;
-    vec3 pos;
-    vec3 dir;
-    vec3 dir_up;
-    vec3 color;
-    materialType material;
-} sceneObject;
-
-typedef struct
-{
-    float plane_dist;
-    float plane_w;
-    float plane_h;
-} camera;
-
-typedef struct
-{
-    float r;
-} sphere;
-
-typedef struct
-{
-    vec3 *vertices;
-    int *vertex_indices;
-} polygonMesh;
-
-typedef struct
-{
-    vec3 *nodes;
-    size_t node_count;
-    float thickness;
-} wire;
-
-typedef struct
-{
-    float intensity;
-} lightSource;
 
 void move_object(sceneObject *scene_object, float forward, float up, float right)
 {
@@ -86,5 +32,3 @@ void rotate_object(sceneObject *scene_object, float pitch, float roll, float yaw
     glm_vec3_normalize(scene_object->dir);
     glm_vec3_normalize(scene_object->dir_up);
 }
-
-#endif

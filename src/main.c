@@ -1,11 +1,37 @@
+#include "scene.h"
+#include "rays.h"
+#include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
 #include <float.h>
 
-#include "rays.h"
+SDL_Event event;
+SDL_Renderer *renderer;
+SDL_Window *window;
 
+void draw_pixel(int x, int y, int r, int g, int b)
+{
+    SDL_SetRenderDrawColor(renderer, r,g,b, 255);
+    // SDL_RenderDrawPoint(renderer, x, y);
+    SDL_RenderFillRect(renderer, &(SDL_Rect)
+    {
+        .x=x*WINDOW_SCALE, .y=y*WINDOW_SCALE, .w=WINDOW_SCALE, .h=WINDOW_SCALE
+    });
+}
+
+void exitProcedure()
+{
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
+void  loadObjFromFile(char *filename, polygonMesh *polygon_mesh)
+{
+    //
+}
 
 unsigned long counter=0;
 int main(void)
@@ -17,14 +43,15 @@ int main(void)
 
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH*WINDOW_SCALE, WINDOW_HEIGHT*WINDOW_SCALE, 0, &window, &renderer);
+    SDL_SetWindowTitle(window, "lightrays");
 
+    /*
     //transpose stuff
     // this can be done as a generic setup method in scene.h
     // rotate_object(&scene_objects[1], 90, 0, 0);
-
     //this code is trash you never free resources for that
     FILE *f = fopen("models/diamond.obj", "r");
-    bool invert_winding = false;
+    bool invert_winding = true;
     int scale = 20;
     int max_vertex_count=200000;
     kiiroitori.vertices = calloc(max_vertex_count, sizeof(vec3));
@@ -38,12 +65,21 @@ int main(void)
         //printf("%s\n", str);
         if(str[0] == 'v')
         {
-            sscanf(str, "%*c %f %f %f", &kiiroitori.vertices[vtx_idx][0], &kiiroitori.vertices[vtx_idx][1], &kiiroitori.vertices[vtx_idx][2]);
-            kiiroitori.vertices[vtx_idx][0] *= scale;
-            kiiroitori.vertices[vtx_idx][1] *= scale;
-            kiiroitori.vertices[vtx_idx][2] *= scale;
-            //printf("%.4f | %.4f | %.4f\n", kiiroitori.vertices[vtx_idx][0], kiiroitori.vertices[vtx_idx][1], kiiroitori.vertices[vtx_idx][2] );
-            vtx_idx++;
+            if(str[1] == 't')
+            {
+            }
+            else if(str[1] == 'p')
+            {
+            }
+            else
+            {
+                sscanf(str, "%*c %f %f %f", &kiiroitori.vertices[vtx_idx][0], &kiiroitori.vertices[vtx_idx][1], &kiiroitori.vertices[vtx_idx][2]);
+                kiiroitori.vertices[vtx_idx][0] *= scale;
+                kiiroitori.vertices[vtx_idx][1] *= scale;
+                kiiroitori.vertices[vtx_idx][2] *= scale;
+                //printf("%.4f | %.4f | %.4f\n", kiiroitori.vertices[vtx_idx][0], kiiroitori.vertices[vtx_idx][1], kiiroitori.vertices[vtx_idx][2] );
+                vtx_idx++;
+            }
         }
         else if(str[0] == 'f')
         {
@@ -63,6 +99,10 @@ int main(void)
 
     fclose(f);
     printf("done loading file\n");
+*/
+
+    //workaround, do better
+    sceneObject *cam = &scene_objects[0];
 
     while(true)
     {
@@ -71,30 +111,30 @@ int main(void)
         // SDL_RenderClear(renderer);
         for (int y=0; y<WINDOW_HEIGHT; y+=1)
         {
-            printf("%d\n",y);
+            //printf("%d\n",y);
             for (int x=0; x<WINDOW_WIDTH; x+=1)
             {
                 vec3 color[ANTIALIASING_LEVEL];
                 for (int i=0; i<ANTIALIASING_LEVEL*ANTIALIASING_LEVEL; i++)
                 {
                     ray ray_ = { .strength = 0.7f };
-                    memcpy(ray_.pos, cam_obj->pos, sizeof(vec3));
-                    glm_vec3_scale(cam_obj->dir, ((camera*)cam_obj->obj_ptr)->plane_dist, ray_.dir);
+                    memcpy(ray_.pos, cam->pos, sizeof(vec3));
+                    glm_vec3_scale(cam->dir, ((camera*)cam->obj_ptr)->plane_dist, ray_.dir);
 
                     vec3 plane_right, plane_up;
-                    glm_vec3_crossn(cam_obj->dir, cam_obj->dir_up, plane_right);
+                    glm_vec3_crossn(cam->dir, cam->dir_up, plane_right);
                     glm_vec3_normalize(plane_right);
-                    memcpy(plane_up, cam_obj->dir_up, sizeof(vec3));
+                    memcpy(plane_up, cam->dir_up, sizeof(vec3));
 
                     float aa_step = 1.0f / (ANTIALIASING_LEVEL+1.0f);
-                    glm_vec3_scale(plane_right, x+(aa_step*(float)(i%ANTIALIASING_LEVEL))-(((camera*)cam_obj->obj_ptr)->plane_w/2), plane_right);
-                    glm_vec3_scale(plane_up, y+(aa_step*(float)((int)i/(int)ANTIALIASING_LEVEL))-(((camera*)cam_obj->obj_ptr)->plane_h/2), plane_up);
+                    glm_vec3_scale(plane_right, x+(aa_step*(float)(i%ANTIALIASING_LEVEL))-(((camera*)cam->obj_ptr)->plane_w/2), plane_right);
+                    glm_vec3_scale(plane_up, y+(aa_step*(float)((int)i/(int)ANTIALIASING_LEVEL))-(((camera*)cam->obj_ptr)->plane_h/2), plane_up);
                     glm_vec3_add(ray_.dir, plane_right, ray_.dir);
                     glm_vec3_add(ray_.dir, plane_up, ray_.dir);
                     glm_vec3_normalize(ray_.dir);
 
                     memcpy(color[i], (vec3){0.0f, 0.0f, 0.0f}, sizeof(vec3));
-                    traceRay(ray_, color[i], 0);
+                    trace_ray(ray_, color[i], 0);
                 }
 
                 vec3 avg_color = {0.0f, 0.0f, 0.0f};
@@ -110,7 +150,7 @@ int main(void)
                     avg_color[i] /= ANTIALIASING_LEVEL;
                 }
 
-                drawPixel(x, WINDOW_HEIGHT-1-y, avg_color[0], avg_color[1], avg_color[2]);
+                draw_pixel(x, WINDOW_HEIGHT-1-y, avg_color[0], avg_color[1], avg_color[2]);
             }
         }
         SDL_RenderPresent(renderer);
@@ -122,7 +162,7 @@ int main(void)
         if(delta_t != 0 && counter%5==0)
         {
             printf("FPS=%.2f\n", 1000/(delta_t));
-            printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam_obj->pos[0], cam_obj->pos[1], cam_obj->pos[2]);
+            printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam->pos[0], cam->pos[1], cam->pos[2]);
         }
         if (SDL_PollEvent(&event))
         {
@@ -141,60 +181,60 @@ int main(void)
         }
         if(state[SDL_SCANCODE_LEFT])
         {
-            move_object(cam_obj, 0, 0, -step);
+            move_object(cam, 0, 0, -step);
         }
         if(state[SDL_SCANCODE_RIGHT])
         {
-            move_object(cam_obj, 0, 0, step);
+            move_object(cam, 0, 0, step);
         }
         if(state[SDL_SCANCODE_A])
         {
-            move_object(cam_obj, 0, step, 0);
+            move_object(cam, 0, step, 0);
         }
         if(state[SDL_SCANCODE_Z])
         {
-            move_object(cam_obj, 0, -step, 0);
+            move_object(cam, 0, -step, 0);
         }
         if(state[SDL_SCANCODE_UP])
         {
-            move_object(cam_obj, step, 0, 0);
+            move_object(cam, step, 0, 0);
         }
         if(state[SDL_SCANCODE_DOWN])
         {
-            move_object(cam_obj, -step, 0, 0);
+            move_object(cam, -step, 0, 0);
         }
         if(state[SDL_SCANCODE_V])
         {
-            rotate_object(cam_obj, step/1000, 0, 0);
+            rotate_object(cam, step/1000, 0, 0);
         }
         if(state[SDL_SCANCODE_F])
         {
-            rotate_object(cam_obj, -step/1000, 0, 0);
+            rotate_object(cam, -step/1000, 0, 0);
         }
         if(state[SDL_SCANCODE_N])
         {
-            rotate_object(cam_obj, 0, step/1000, 0);
+            rotate_object(cam, 0, step/1000, 0);
         }
         if(state[SDL_SCANCODE_B])
         {
-            rotate_object(cam_obj, 0, -step/1000, 0);
+            rotate_object(cam, 0, -step/1000, 0);
         }
         if(state[SDL_SCANCODE_C])
         {
-            rotate_object(cam_obj, 0, 0, -step/1000);
+            rotate_object(cam, 0, 0, -step/1000);
         }
         if(state[SDL_SCANCODE_X])
         {
-            rotate_object(cam_obj, 0, 0, step/1000);
+            rotate_object(cam, 0, 0, step/1000);
         }
         if(state[SDL_SCANCODE_Q])
         {
-            ((camera*)cam_obj->obj_ptr)->plane_dist -= step/30;
+            ((camera*)cam->obj_ptr)->plane_dist -= step/30;
             usleep(10000);
         }
         if(state[SDL_SCANCODE_W])
         {
-            ((camera*)cam_obj->obj_ptr)->plane_dist += step/30;
+            ((camera*)cam->obj_ptr)->plane_dist += step/30;
             usleep(10000);
         }
 

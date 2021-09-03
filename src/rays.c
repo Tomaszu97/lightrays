@@ -1,65 +1,18 @@
-#ifndef RAYS_H
-#define RAYS_H
-
-#include <SDL2/SDL.h>
-#include <math.h>
-#include "cglm/cglm.h"
-#include "cglm/struct.h"
-#include "cglm/call.h"
 #include "scene.h"
+#include "rays.h"
+#include "cglm/cglm.h"
+#include "cglm/call.h"
+#include <math.h>
+#include <string.h>
 
-#undef  RAND_MAX
-#define RAND_MAX 255
-#define MAX_REFLECTION_DEPTH 10
-
-
-SDL_Event event;
-SDL_Renderer *renderer;
-SDL_Window *window;
-extern sceneObject scene_objects[];
-
-// add color to ray itself
-typedef struct
-{
-    vec3 pos;
-    vec3 dir; //keep normalized!
-    vec3 color;
-    float strength;
-} ray;
-
-typedef struct
-{
-    vec3 pos;
-    float t;
-    vec3 normal;
-    bool is_front_face;
-} hitRecord;
-
-void exitProcedure()
-{
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-}
-
-void drawPixel(int x, int y, int r, int g, int b)
-{
-    SDL_SetRenderDrawColor(renderer, r,g,b, 255);
-    // SDL_RenderDrawPoint(renderer, x, y);
-    SDL_RenderFillRect(renderer, &(SDL_Rect)
-    {
-        .x=x*WINDOW_SCALE, .y=y*WINDOW_SCALE, .w=WINDOW_SCALE, .h=WINDOW_SCALE
-    });
-}
-
-void rayPosAt(float t, ray ray_, vec3 dest)
+void ray_pos_at(float t, ray ray_, vec3 dest)
 {
     vec3 tmp;
     glm_vec3_scale(ray_.dir, t, tmp);
     glm_vec3_add(ray_.pos, tmp, dest);
 }
 
-void randomUnitVector(vec3 vector)
+void random_unit_vector(vec3 vector)
 {
     vector[0] = (float)rand();
     vector[1] = (float)rand();
@@ -67,22 +20,16 @@ void randomUnitVector(vec3 vector)
     glm_vec3_normalize(vector);
 }
 
-void rayToBackgroundColor(ray ray_, vec3 *color)
+void ray_to_bg_color(ray ray_, vec3 *color)
 {
     float blend = (ray_.dir[1]+1)/2;
-    glm_vec3_smoothinterp((vec3)
-    {
-        255,255,255
-    },(vec3)
-    {
-        128,178,255
-    }, blend, *color);
+    glm_vec3_smoothinterp((vec3){255,255,255}, (vec3){128,178,255}, blend, *color);
 }
 
-void lambertianReflection(vec3 in, vec3 normal, float amount, vec3 out)
+void lambertian_reflection(vec3 in, vec3 normal, float amount, vec3 out)
 {
     vec3 lamb_vec;
-    randomUnitVector(lamb_vec);
+    random_unit_vector(lamb_vec);
     glm_vec3_add(normal, lamb_vec, lamb_vec);
 
     vec3 refl_vec;
@@ -94,7 +41,7 @@ void lambertianReflection(vec3 in, vec3 normal, float amount, vec3 out)
     glm_vec3_normalize(out);
 }
 
-void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
+void set_front_face_and_normal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
 {
     hit_record->is_front_face = glm_vec3_dot(ray_.dir, outward_normal) < 0;
     if(hit_record->is_front_face)
@@ -109,7 +56,7 @@ void setFrontFaceAndNormal(ray ray_, hitRecord *hit_record, vec3 outward_normal)
     }
 }
 
-void getSphereOutwardNormal(vec3 point, sceneObject scene_object, vec3 destNormal)
+void get_sphere_outward_normal(vec3 point, sceneObject scene_object, vec3 destNormal)
 {
     vec3 tmpvec;
     glm_vec3_sub(point, scene_object.pos, tmpvec);
@@ -118,7 +65,7 @@ void getSphereOutwardNormal(vec3 point, sceneObject scene_object, vec3 destNorma
 }
 
 
-bool hitPolygonMesh(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
+bool hit_polygon_mesh(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
 {
     //   1     |  Q*E2 |
     //  ---- * |  P*T  |
@@ -184,7 +131,7 @@ bool hitPolygonMesh(ray ray_, sceneObject scene_object, float tmin, float tmax, 
     }
 }
 
-bool hitSphere(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
+bool hit_sphere(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
 {
     vec3 oc;
     glm_vec3_sub(ray_.pos, scene_object.pos, oc);
@@ -203,14 +150,14 @@ bool hitSphere(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRe
     }
 
     hit_record->t = root;
-    rayPosAt(hit_record->t, ray_, hit_record->pos);
+    ray_pos_at(hit_record->t, ray_, hit_record->pos);
     vec3 outwardNormal;
-    getSphereOutwardNormal(hit_record->pos, scene_object, outwardNormal);
-    setFrontFaceAndNormal(ray_, hit_record, outwardNormal);
+    get_sphere_outward_normal(hit_record->pos, scene_object, outwardNormal);
+    set_front_face_and_normal(ray_, hit_record, outwardNormal);
     return true;
 }
 
-bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord hit_record,  materialType material)
+bool bounce_ray(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord hit_record,  materialType material)
 {
     // reflect ray (position)
     memcpy(next_ray->pos, hit_record.pos, sizeof(vec3));
@@ -237,7 +184,7 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
     }
     else
     {
-        lambertianReflection(ray_.dir, hit_record.normal, material_type_diffuse_factor[material], next_ray->dir);
+        lambertian_reflection(ray_.dir, hit_record.normal, material_type_diffuse_factor[material], next_ray->dir);
     }
 
     // color ray
@@ -257,83 +204,73 @@ bool bounceRay(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord
     return true;
 }
 
-void traceRay(ray ray_, vec3 out_color, int level)
+void trace_ray(ray ray_, vec3 out_color, int level)
 {
     if(++level > MAX_REFLECTION_DEPTH || ray_.strength < 0.1) return;
 
     const float closest_intersection = 0.1;
-    float smallest_t = FLT_MAX;
-    int closest_obj_index = -1;
-    hitRecord hit_record;
+    sceneObject *closest_object      = &(sceneObject){ .obj_ptr = NULL };
+    hitRecord   closest_hit_record   = { .t = FLT_MAX };
 
-    //TODO handle more object types
-    //TODO refactor, optimize this loop
     for(int i=0; scene_objects[i].obj_ptr != NULL; i++)
     {
-        if(scene_objects[i].obj_type == SPHERE)
+        hitRecord tmp_hit_record;
+        switch(scene_objects[i].obj_type)
         {
-            if(hitSphere(ray_, scene_objects[i], closest_intersection, FLT_MAX, &hit_record))
-            {
-                if(hit_record.t < smallest_t)
+            case CAMERA:
+                break;
+            case SPHERE:
+                if(hit_sphere(ray_, scene_objects[i], closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
                 {
-                    smallest_t = hit_record.t;
-                    closest_obj_index = i;
+                    memcpy(&closest_hit_record, &tmp_hit_record, sizeof(hitRecord));
+                    closest_object = &scene_objects[i];
                 }
-            }
-        }
-        else if(scene_objects[i].obj_type == POLYGON_MESH)
-        {
-            if(hitPolygonMesh(ray_, scene_objects[i], closest_intersection, FLT_MAX, &hit_record))
-            {
-                if(hit_record.t < smallest_t)
+                break;
+            case POLYGON_MESH:
+                if(hit_polygon_mesh(ray_, scene_objects[i], closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
                 {
-                    smallest_t = hit_record.t;
-                    closest_obj_index = i;
+                    memcpy(&closest_hit_record, &tmp_hit_record, sizeof(hitRecord));
+                    closest_object = &scene_objects[i];
                 }
-            }
+                break;
+            case WIRE:
+                break;
+            case LIGHT_SOURCE:
+                break;
         }
     }
 
-    if(closest_obj_index == -1)
+    if(closest_object->obj_ptr == NULL)
     {
         vec3 bg_color;
-        rayToBackgroundColor(ray_, &bg_color);
+        ray_to_bg_color(ray_, &bg_color);
         glm_vec3_smoothinterp(out_color, bg_color, ray_.strength, out_color);
         return;
     }
 
-    //TODO all objects
-    if(scene_objects[closest_obj_index].obj_type == SPHERE)
-        hitSphere(ray_, scene_objects[closest_obj_index], closest_intersection, FLT_MAX, &hit_record);
-    else if(scene_objects[closest_obj_index].obj_type == POLYGON_MESH)
-        hitPolygonMesh(ray_, scene_objects[closest_obj_index], closest_intersection, FLT_MAX, &hit_record);
-
-    //refactor, optimize
-    if(hit_record.is_front_face || scene_objects[closest_obj_index].material == GLASS)
+    if(closest_hit_record.is_front_face || closest_object->material == GLASS || INSIDE_RAY_BEHAVIOR == 0)
     {
         ray next_ray;
-        if(!bounceRay(ray_,
-                     &next_ray,
-                     scene_objects[closest_obj_index].color,
-                     out_color,
-                     hit_record,
-                     scene_objects[closest_obj_index].material)
-           ) return;
+        if(
+            !bounce_ray(ray_,
+            &next_ray,
+            closest_object->color,
+            out_color,
+            closest_hit_record,
+            closest_object->material)
+        ) return;
 
-        traceRay(next_ray, out_color, level);
+        trace_ray(next_ray, out_color, level);
     }
-    else
+    else if(INSIDE_RAY_BEHAVIOR == 1)
     {
-        // passthrough
-        memcpy(ray_.pos, hit_record.pos, sizeof(vec3));
-        traceRay(ray_, out_color, level);
-
-        // solid color
-        //out_color[0]=255;
-        //out_color[1]=0;
-        //out_color[2]=255;
-        return;
+        memcpy(ray_.pos, closest_hit_record.pos, sizeof(vec3));
+        trace_ray(ray_, out_color, level);
+    }
+    else if(INSIDE_RAY_BEHAVIOR == 2)
+    {
+        out_color[0]=255;
+        out_color[1]=0;
+        out_color[2]=255;
     }
 }
-
-#endif
