@@ -39,8 +39,8 @@ typedef struct
 typedef struct
 {
     vec3 *vertices;
-    vec3 *vertice_normals;
-    vec2 *texture_coordinates;
+    vec3 *vertice_normals;      //TODO
+    vec2 *texture_coordinates;  //TODO
     int *vertex_indices;
 } polygonMesh;
 

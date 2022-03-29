@@ -3,10 +3,10 @@
 
 #include "cglm/struct.h"
 
-#define MAX_REFLECTION_DEPTH 10
+#define MAX_REFLECTION_DEPTH 7
 
-#define INSIDE_RAY_BEHAVIOR 0         // reflect
-//#define INSIDE_RAY_BEHAVIOR 1         // passthrough
+//#define INSIDE_RAY_BEHAVIOR 0         // reflect
+#define INSIDE_RAY_BEHAVIOR 1         // passthrough
 //#define INSIDE_RAY_BEHAVIOR 2         // solid color
 
 #define GLASS_REFLECTION_COEFF 1.52   // window glass

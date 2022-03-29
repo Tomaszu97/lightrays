@@ -64,7 +64,6 @@ void get_sphere_outward_normal(vec3 point, sceneObject scene_object, vec3 destNo
     memcpy(destNormal, tmpvec, sizeof(vec3));
 }
 
-
 bool hit_polygon_mesh(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record)
 {
     //   1     |  Q*E2 |

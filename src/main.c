@@ -21,16 +21,11 @@ void draw_pixel(int x, int y, int r, int g, int b)
     });
 }
 
-void exitProcedure()
+void exit_procedure()
 {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-}
-
-void  loadObjFromFile(char *filename, polygonMesh *polygon_mesh)
-{
-    //
 }
 
 unsigned long counter=0;
@@ -45,64 +40,11 @@ int main(void)
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH*WINDOW_SCALE, WINDOW_HEIGHT*WINDOW_SCALE, 0, &window, &renderer);
     SDL_SetWindowTitle(window, "lightrays");
 
-    /*
-    //transpose stuff
-    // this can be done as a generic setup method in scene.h
-    // rotate_object(&scene_objects[1], 90, 0, 0);
-    //this code is trash you never free resources for that
-    FILE *f = fopen("models/diamond.obj", "r");
-    bool invert_winding = true;
-    int scale = 20;
-    int max_vertex_count=200000;
-    kiiroitori.vertices = calloc(max_vertex_count, sizeof(vec3));
-    kiiroitori.vertex_indices = calloc(max_vertex_count, sizeof(int));
-    char *str = malloc(1024);
-    int vtx_idx=0;
-    int vid_idx=0;
-    while(!feof(f))
-    {
-        fgets(str, 1024, f);
-        //printf("%s\n", str);
-        if(str[0] == 'v')
-        {
-            if(str[1] == 't')
-            {
-            }
-            else if(str[1] == 'p')
-            {
-            }
-            else
-            {
-                sscanf(str, "%*c %f %f %f", &kiiroitori.vertices[vtx_idx][0], &kiiroitori.vertices[vtx_idx][1], &kiiroitori.vertices[vtx_idx][2]);
-                kiiroitori.vertices[vtx_idx][0] *= scale;
-                kiiroitori.vertices[vtx_idx][1] *= scale;
-                kiiroitori.vertices[vtx_idx][2] *= scale;
-                //printf("%.4f | %.4f | %.4f\n", kiiroitori.vertices[vtx_idx][0], kiiroitori.vertices[vtx_idx][1], kiiroitori.vertices[vtx_idx][2] );
-                vtx_idx++;
-            }
-        }
-        else if(str[0] == 'f')
-        {
-            int second = 1;
-            int third = 2;
-            if(invert_winding)
-            {
-                second = 2;
-                third = 1;
-            }
-            sscanf(str, "%*c %d %d %d", &kiiroitori.vertex_indices[vid_idx], &kiiroitori.vertex_indices[vid_idx+second], &kiiroitori.vertex_indices[vid_idx+third]);
-            //printf("%d | %d | %d\n", kiiroitori.vertex_indices[vid_idx], kiiroitori.vertex_indices[vid_idx+1], kiiroitori.vertex_indices[vid_idx+2]);
-            vid_idx+=3;
-        }
-    }
-    kiiroitori.vertex_indices[vid_idx] = -1;
-
-    fclose(f);
-    printf("done loading file\n");
-*/
 
     //workaround, do better
     sceneObject *cam = &scene_objects[0];
+    sceneObject *polygon = &scene_objects[1];
+    load_polygon_from_file("models/kiiroitori.obj", polygon->obj_ptr, false);
 
     while(true)
     {
@@ -162,21 +104,21 @@ int main(void)
         if(delta_t != 0 && counter%5==0)
         {
             printf("FPS=%.2f\n", 1000/(delta_t));
-            printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam->pos[0], cam->pos[1], cam->pos[2]);
+            //printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam->pos[0], cam->pos[1], cam->pos[2]);
         }
         if (SDL_PollEvent(&event))
         {
             switch(event.type)
             {
             case SDL_QUIT:
-                exitProcedure();
+                exit_procedure();
                 return EXIT_SUCCESS;
             }
         }
         const Uint8 *state = SDL_GetKeyboardState(NULL);
         if(state[SDL_SCANCODE_ESCAPE])
         {
-            exitProcedure();
+            exit_procedure();
             return EXIT_SUCCESS;
         }
         if(state[SDL_SCANCODE_LEFT])
