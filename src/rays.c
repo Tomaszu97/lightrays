@@ -1,5 +1,6 @@
 #include "scene.h"
 #include "rays.h"
+#include "gal.h"
 #include "cglm/cglm.h"
 #include "cglm/call.h"
 #include <math.h>
@@ -76,23 +77,22 @@ bool hit_polygon_mesh(ray ray_, sceneObject scene_object, float tmin, float tmax
     vec3 e1, e2, t, q, p, tuv, tmpvec;
     float det;
     hitRecord nearest_hit = { .t=FLT_MAX };
+    polygonMesh *obj = (polygonMesh*)scene_object.obj_ptr;
+    bool is_front_face;
 
-    for(size_t i=0; ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i] != -1 ;)
+    for(size_t i=0; i<obj->face_count; i++)
     {
-        int idx0 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
-        int idx1 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
-        int idx2 = ((polygonMesh*)scene_object.obj_ptr)->vertex_indices[i++] -1;
-
-        glm_vec3_sub(((polygonMesh*)scene_object.obj_ptr)->vertices[idx1], ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], e1);
-        glm_vec3_sub(((polygonMesh*)scene_object.obj_ptr)->vertices[idx2], ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], e2);
+        glm_vec3_sub(*obj->faces[i][1], *obj->faces[i][0], e1);
+        glm_vec3_sub(*obj->faces[i][2], *obj->faces[i][0], e2);
         glm_vec3_cross(ray_.dir, e2, p);
         det = glm_vec3_dot(p, e1);
         if(det > -tmin && det < tmin) continue;
-        bool is_front_face = false;
+
+        is_front_face = false;
         if(det < 0) is_front_face = true;
 
         det = 1 / det;
-        glm_vec3_sub(ray_.pos, ((polygonMesh*)scene_object.obj_ptr)->vertices[idx0], t);
+        glm_vec3_sub(ray_.pos, *obj->faces[i][0] , t);
 
         //u
         tuv[1] = glm_vec3_dot(p, t);
@@ -118,7 +118,6 @@ bool hit_polygon_mesh(ray ray_, sceneObject scene_object, float tmin, float tmax
             glm_vec3_scale(ray_.dir, nearest_hit.t, tmpvec);
             glm_vec3_add(ray_.pos, tmpvec, nearest_hit.pos);
             glm_vec3_crossn(e1, e2, nearest_hit.normal); //leave this only
-
         }
     }
 
@@ -272,4 +271,55 @@ void trace_ray(ray ray_, vec3 out_color, int level)
         out_color[1]=0;
         out_color[2]=255;
     }
+}
+
+void render_frame()
+{
+    sceneObject *cam = &scene_objects[0];
+
+    gal_clear_screen();
+    for (int y=0; y<WINDOW_HEIGHT; y+=1)
+    {
+        for (int x=0; x<WINDOW_WIDTH; x+=1)
+        {
+            vec3 color[ANTIALIASING_LEVEL];
+            for (int i=0; i<ANTIALIASING_LEVEL*ANTIALIASING_LEVEL; i++)
+            {
+                ray ray_ = { .strength = 0.7f };
+                memcpy(ray_.pos, cam->pos, sizeof(vec3));
+                glm_vec3_scale(cam->dir, ((camera*)cam->obj_ptr)->plane_dist, ray_.dir);
+
+                vec3 plane_right, plane_up;
+                glm_vec3_crossn(cam->dir, cam->dir_up, plane_right);
+                glm_vec3_normalize(plane_right);
+                memcpy(plane_up, cam->dir_up, sizeof(vec3));
+
+                float aa_step = 1.0f / (ANTIALIASING_LEVEL+1.0f);
+                glm_vec3_scale(plane_right, x+(aa_step*(float)(i%ANTIALIASING_LEVEL))-(((camera*)cam->obj_ptr)->plane_w/2), plane_right);
+                glm_vec3_scale(plane_up, y+(aa_step*(float)((int)i/(int)ANTIALIASING_LEVEL))-(((camera*)cam->obj_ptr)->plane_h/2), plane_up);
+                glm_vec3_add(ray_.dir, plane_right, ray_.dir);
+                glm_vec3_add(ray_.dir, plane_up, ray_.dir);
+                glm_vec3_normalize(ray_.dir);
+
+                memcpy(color[i], (vec3){0.0f, 0.0f, 0.0f}, sizeof(vec3));
+                trace_ray(ray_, color[i], 0);
+            }
+
+            vec3 avg_color = {0.0f, 0.0f, 0.0f};
+            for (int i=0; i<ANTIALIASING_LEVEL; i++)
+            {
+                for(int j=0; j<3; j++)
+                {
+                    avg_color[j] += color[i][j];
+                }
+            }
+            for(int i=0; i<3; i++)
+            {
+                avg_color[i] /= ANTIALIASING_LEVEL;
+            }
+
+            gal_draw_pixel(x, WINDOW_HEIGHT-1-y, avg_color[0], avg_color[1], avg_color[2]);
+        }
+    }
+    gal_flip_screen();
 }

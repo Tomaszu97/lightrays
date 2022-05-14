@@ -1,89 +1,111 @@
-#include <stdbool.h>
 #include "scene.h"
 #include "objects.h"
+#include <stdbool.h>
+#include <string.h>
 
-bool load_polygon_from_file(char *filename, polygonMesh *dst, bool invert_winding)
+static unsigned int obj_max_line_len = 1024;
+
+bool load_alloc_obj(polygonMesh *dst, char *filename)
 {
+    char *linebuf = calloc(obj_max_line_len, sizeof(char));
+    int line_count = 0;
+    unsigned int vtc_idx = 0;
+    unsigned int fac_idx = 0;
+    int res;
+    unsigned int tmp_face_ind[3];
+    char *tmp_str;
+
     FILE *f = fopen(filename, "r");
-    if (!f) 
+    if (!f)
     {
         printf("Error reading polygon file\n");
         return false;
     }
 
-    char *linebuf = calloc(4096, sizeof(char));
-    int vertex_count = 0;
-
-    while(fgets(linebuf, 1024, f) != NULL)
-    {
-        ++vertex_count;
-    }
-
+    //TODO optimize it
+    while(fgets(linebuf, obj_max_line_len, f) != NULL) line_count++;
     rewind(f);
-    dst->vertices = calloc(20000+vertex_count, sizeof(vec3));
-    dst->vertex_indices = calloc(20000+3*vertex_count, sizeof(int));
-    int vtc_idx = 0;
-    int vtcid_idx = 0;
+    dst->vertices = calloc(line_count, sizeof(vec3));
+    dst->faces = calloc(line_count, 3*sizeof(vec3*));
 
     while(fgets(linebuf, 1024, f) != NULL)
     {
-        printf("loading polygon: %s\n", linebuf);
+        printf("loading obj: %s\n", linebuf);
         switch(linebuf[0])
         {
             case 'v':
                 switch(linebuf[1])
                 {
-                    case 't':
-                        //to be implemented
+                    case ' ':
+                    case '\t':
+                        res = sscanf(linebuf,
+                                     "%*c %f %f %f",
+                                     &dst->vertices[vtc_idx][0],
+                                     &dst->vertices[vtc_idx][1], 
+                                     &dst->vertices[vtc_idx][2]);
+                        if (res == 3)
+                        {
+                            // temporary hardcoded scaling
+                            int scale=10;
+                            dst->vertices[vtc_idx][0] *= scale;
+                            dst->vertices[vtc_idx][1] *= scale;
+                            dst->vertices[vtc_idx][2] *= scale;
+                            // detete this
+                            vtc_idx++;
+                        }
+                        else
+                        {
+                            dst->vertices[vtc_idx][0] = 0;
+                            dst->vertices[vtc_idx][1] = 0;
+                            dst->vertices[vtc_idx][2] = 0;
+                        }
                         break;
-                    case 'p':
-                        //to be implemented
-                        break;
-                    case 'n':
-                        //to be implemented (normals!)
-                        break;
+                    case 't': // texture coordinates unsupported
+                    case 'p': // parameter space vertices unsupported
+                    case 'n': // vertex normals unsupported
                     default:
-                        sscanf(linebuf, "%*c %f %f %f", &dst->vertices[vtc_idx][0],
-                                                    &dst->vertices[vtc_idx][1], 
-                                                    &dst->vertices[vtc_idx][2]);
-                        // temporary hardcoded scaling
-                        int scale=10;
-                        dst->vertices[vtc_idx][0] *= scale;
-                        dst->vertices[vtc_idx][1] *= scale;
-                        dst->vertices[vtc_idx][2] *= scale;
-                        // /temp scaling
-                        vtc_idx++;
                         break;
                 }
                 break;
             case 'f':
-                // not perfect but works - completely ignoring slashes
-                if(!invert_winding)
+                // vertice texture coordinates
+                // and normals are omitted
+                res = 0;
+                for(tmp_str=linebuf; *tmp_str; tmp_str++)
+                    if(*tmp_str == '/') res++;
+
+                if (res == 0) tmp_str = "%*c %u %u %u";
+                else if (res == 3) tmp_str = "%*c %u/%*u %u/%*u %u/%*u";
+                else if (res == 6)
                 {
-                    sscanf(linebuf, "%*c %d %d %d",
-                           &dst->vertex_indices[vtcid_idx],
-                           &dst->vertex_indices[vtcid_idx+1],
-                           &dst->vertex_indices[vtcid_idx+2]);
+                    if (strstr(linebuf, "//"))
+                        tmp_str = "%*c %u//%*u %u//%*u %u//%*u";
+                    else
+                        tmp_str = "%*c %u/%*u/%*u %u/%*u/%*u %u/%*u/%*u";
                 }
-                else
+                res = sscanf(linebuf,
+                             tmp_str,
+                             &tmp_face_ind[0],
+                             &tmp_face_ind[1],
+                             &tmp_face_ind[2]);
+                if (res == 3)
                 {
-                    sscanf(linebuf, "%*c %d %d %d",
-                           &dst->vertex_indices[vtcid_idx],
-                           &dst->vertex_indices[vtcid_idx+2],
-                           &dst->vertex_indices[vtcid_idx+1]);
+                    dst->faces[fac_idx][0] = &(dst->vertices[tmp_face_ind[0]-1]);
+                    dst->faces[fac_idx][1] = &(dst->vertices[tmp_face_ind[1]-1]);
+                    dst->faces[fac_idx][2] = &(dst->vertices[tmp_face_ind[2]-1]);
+                    fac_idx++;
                 }
-                vtcid_idx += 3;
                 break;
+            case 'l': //lines not supported
             case '#':
             default:
                 break;
         }
-
     }
-
+    dst->vertice_count = vtc_idx;
+    dst->face_count = fac_idx;
     fclose(f);
     free(linebuf);
-    dst->vertex_indices[vtcid_idx] = -1;
     return true;
 }
 

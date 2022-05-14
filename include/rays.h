@@ -5,8 +5,8 @@
 
 #define MAX_REFLECTION_DEPTH 7
 
-//#define INSIDE_RAY_BEHAVIOR 0         // reflect
-#define INSIDE_RAY_BEHAVIOR 1         // passthrough
+#define INSIDE_RAY_BEHAVIOR 0         // reflect
+//#define INSIDE_RAY_BEHAVIOR 1         // passthrough
 //#define INSIDE_RAY_BEHAVIOR 2         // solid color
 
 #define GLASS_REFLECTION_COEFF 1.52   // window glass
@@ -43,5 +43,6 @@ bool hit_polygon_mesh(ray ray_, sceneObject scene_object, float tmin, float tmax
 bool hit_sphere(ray ray_, sceneObject scene_object, float tmin, float tmax, hitRecord *hit_record);
 bool bounce_ray(ray ray_, ray *next_ray, vec3 in_color, vec3 out_color, hitRecord hit_record,  materialType material);
 void trace_ray(ray ray_, vec3 out_color, int level);
+void render_frame();
 
 #endif
