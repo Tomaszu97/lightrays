@@ -3,9 +3,11 @@
 #include <stdbool.h>
 #include <string.h>
 
+// TODO delete scene.c file - create objects dynamically
 static unsigned int obj_max_line_len = 1024;
 
-bool load_alloc_obj(polygonMesh *dst, char *filename)
+// TODO probably you forgot about any dealloc but whatever
+bool load_alloc_obj(polygonMesh *dst, char *filename, float scale)
 {
     char *linebuf = calloc(obj_max_line_len, sizeof(char));
     int line_count = 0;
@@ -22,15 +24,14 @@ bool load_alloc_obj(polygonMesh *dst, char *filename)
         return false;
     }
 
-    //TODO optimize it
     while(fgets(linebuf, obj_max_line_len, f) != NULL) line_count++;
     rewind(f);
     dst->vertices = calloc(line_count, sizeof(vec3));
     dst->faces = calloc(line_count, 3*sizeof(vec3*));
 
-    while(fgets(linebuf, 1024, f) != NULL)
+    while(fgets(linebuf, obj_max_line_len, f) != NULL)
     {
-        printf("loading obj: %s\n", linebuf);
+        printf("loading obj: %s", linebuf);
         switch(linebuf[0])
         {
             case 'v':
@@ -45,8 +46,6 @@ bool load_alloc_obj(polygonMesh *dst, char *filename)
                                      &dst->vertices[vtc_idx][2]);
                         if (res == 3)
                         {
-                            // temporary hardcoded scaling
-                            int scale=10;
                             dst->vertices[vtc_idx][0] *= scale;
                             dst->vertices[vtc_idx][1] *= scale;
                             dst->vertices[vtc_idx][2] *= scale;
@@ -96,7 +95,7 @@ bool load_alloc_obj(polygonMesh *dst, char *filename)
                     fac_idx++;
                 }
                 break;
-            case 'l': //lines not supported
+            case 'l': //lines not supported yet
             case '#':
             default:
                 break;
@@ -109,177 +108,83 @@ bool load_alloc_obj(polygonMesh *dst, char *filename)
     return true;
 }
 
-sceneObject scene_objects_arr[] =
+sceneObject *get_scene_object(int id)
 {
-    {
-        .pos        = {1500,700,2950},
-        .dir        = {-0.15,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {0,0,0},
-        .material   = GENERIC_SOLID,
-        .obj_type   = CAMERA,
-        .obj_ptr    = &(camera){
-        .plane_dist = (WINDOW_WIDTH+WINDOW_HEIGHT)/2*0.5,
-        .plane_w    = WINDOW_WIDTH,
-        .plane_h    = WINDOW_HEIGHT,
-        },
-    },
-    {
-        .pos        = {1500,700,2950},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {180,180,0},
-        .material   = GENERIC_SOLID,
-        .obj_type   = POLYGON_MESH,
-        .obj_ptr    = &(polygonMesh){},
-    },
-    {
-        .pos        = {1000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {180,70,20},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 550,
-        },
-    },
-    {
-        .pos        = {2000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {0,180,0},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 350,
-        },
-    },
-    {
-        .pos        = {3000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {100,180,100},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 140,
-        },
-    },
-    {
-        .pos        = {4000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {10,10,200},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 400,
-        },
-    },
-    {
-        .pos        = {5000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {70,180,20},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 600,
-        },
-    },
-    {
-        .pos        = {6000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {0,70,200},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 650,
-        },
-    },
-    {
-        .pos        = {7000,0,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {190,10,20},
-        .material   = SHINY,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 150,
-        },
-    },
-    {
-        .pos        = {0,-1002000,-3000},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {10,150,90},
-        .material   = MATT,
-        .obj_type   = SPHERE,
-        .obj_ptr    = &(sphere){
-        .r          = 1000000,
-        },
-    },
-    {
-        .pos        = {0,0,0},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {10,10,10},
-        .material   = GLASS,
-        .obj_type   = WIRE,
-        .obj_ptr    = &(wire){
-        .nodes      = (vec3[])
-            {
-                { -1000,  3500, -1000 },
-                {  -800,  3100, -1000 },
-                {  -600,  2800, -1000 },
-                {  -400,  2600, -1000 },
-                {  -200,  2500, -1000 },
-                {     0,  2440, -1000 },
-                {   200,  2500, -1000 },
-            },
-        .node_count=7,
-        .thickness=20,
-        },
-    },
-    {
-        .pos        = {0,0,0},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {180,180,0},
-        .material   = GLASS,
-        .obj_type   = WIRE,
-        .obj_ptr    = &(wire){
-        .nodes      = (vec3[])
-            {
-                { -1200,  3500, -2000 },
-                { -1000,  3100, -2000 },
-                {  -800,  2800, -2000 },
-                {  -600,  2600, -2000 },
-                {  -400,  2500, -2000 },
-                {  -200,  2440, -2000 },
-                {     0,  2480, -2000 },
-            },
-        .node_count=7,
-        .thickness=20,
-        },
-    },
-    {
-        .pos        = {0,0,0},
-        .dir        = {0,0,-1},
-        .dir_up     = {0,1,0},
-        .color      = {180,180,0},
-        .material   = GLOWING,
-        .obj_type   = LIGHT_SOURCE,
-        .obj_ptr    = &(lightSource){
-        .intensity  = 0.9,
-        },
-    },
+    if (scene_objects == NULL) return NULL;
 
+    sceneObject *object;
+    for(object = scene_objects;
+        object->next_scene_obj != NULL;
+        object = object->next_scene_obj)
+    {
+        if (object->id == id) return object;
+    }
+    return NULL;
+}
+
+sceneObject *get_last_scene_object()
 {
-        .obj_ptr    = NULL,
+    if (scene_objects == NULL) return NULL;
+
+    sceneObject *last_object = scene_objects;
+    while(last_object->next_scene_obj != NULL) last_object = last_object->next_scene_obj;
+    return last_object;
+}
+
+sceneObject *alloc_new_scene_object(objectType obj_type)
+{
+    int last_object_id = 0;
+
+    sceneObject *last_object = get_last_scene_object();
+    if (last_object == NULL) return NULL;
+
+    last_object_id = last_object->id + 1;
+
+    last_object->next_scene_obj = malloc(sizeof(sceneObject));
+    last_object = last_object->next_scene_obj;
+    memset(last_object, 0, sizeof(sceneObject));
+    last_object->obj_ptr = malloc(sizeof(obj_type));
+    memset(last_object->obj_ptr, 0, sizeof(obj_type));
+
+    last_object->id = last_object_id;
+    last_object->obj_type = obj_type;
+    //TODO remove this, move camera somewhere in the centre
+    last_object->pos[0]    = 1500;
+    last_object->pos[1]    = 700;
+    last_object->pos[2]    = 2950;
+    last_object->dir[0]    = 0;
+    last_object->dir[1]    = 0;
+    last_object->dir[2]    = -1;
+    last_object->dir_up[0] = 0;
+    last_object->dir_up[1] = 1;
+    last_object->dir_up[2] = 0;
+    last_object->color[0]  = 180;
+    last_object->color[1]  = 180;
+    last_object->color[2]  = 0;
+    last_object->material  = GENERIC_SOLID;
+    last_object->scale     = 1.0f;
+
+}
+
+bool remove_scene_object(sceneObject scene_object)
+{
+    //TODO remove and dealloc object
+}
+
+static sceneObject cam = {
+    .next_scene_obj = NULL,
+    .pos        = {1500,700,2950},
+    .dir        = {-0.15,0,-1},
+    .dir_up     = {0,1,0},
+    .color      = {0,0,0},
+    .material   = GENERIC_SOLID,
+    .obj_type   = CAMERA,
+    .obj_ptr    = &(camera){
+    .plane_dist = (WINDOW_WIDTH+WINDOW_HEIGHT)/2*0.5,
+    .plane_w    = WINDOW_WIDTH,
+    .plane_h    = WINDOW_HEIGHT,
     },
 };
 
-sceneObject *scene_objects = scene_objects_arr;
+sceneObject *scene_objects = &cam;
+

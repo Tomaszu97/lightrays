@@ -1,0 +1,4 @@
+pr 0
+#ld models/diamond.obj 10
+#mv 1 10 10 0
+#ld models/kiiroitori.obj 10

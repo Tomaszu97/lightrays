@@ -1,9 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define WINDOW_WIDTH 1280/4
-#define WINDOW_HEIGHT 720/4
+#define WINDOW_WIDTH 1920/10
+#define WINDOW_HEIGHT 1080/10
 #define ANTIALIASING_LEVEL 1
-#define WINDOW_SCALE 4
+#define WINDOW_SCALE 5
 
 #endif

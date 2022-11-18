@@ -1,10 +1,36 @@
 #include "scene.h"
 #include "rays.h"
-#include "gal.h"
 #include "cglm/cglm.h"
 #include "cglm/call.h"
 #include <math.h>
 #include <string.h>
+
+#undef  RAND_MAX
+#define RAND_MAX 255
+#define MAX_REFLECTION_DEPTH 7
+#define INSIDE_RAY_BEHAVIOR 0         // reflect
+//#define INSIDE_RAY_BEHAVIOR 1         // passthrough
+//#define INSIDE_RAY_BEHAVIOR 2         // solid color
+//#define GLASS_REFLECTION_COEFF 1.52   // window glass
+#define GLASS_REFLECTION_COEFF 2.417  // diamond
+//#define GLASS_REFLECTION_COEFF 1.333  // water
+
+
+typedef struct
+{
+    vec3 pos;
+    vec3 dir; //keep normalized!
+    vec3 color;
+    float strength;
+} ray;
+
+typedef struct
+{
+    vec3 pos;
+    float t;
+    vec3 normal;
+    bool is_front_face;
+} hitRecord;
 
 void ray_pos_at(float t, ray ray_, vec3 dest)
 {
@@ -207,28 +233,36 @@ void trace_ray(ray ray_, vec3 out_color, int level)
     if(++level > MAX_REFLECTION_DEPTH || ray_.strength < 0.1) return;
 
     const float closest_intersection = 0.1;
+    sceneObject *current_object;
     sceneObject *closest_object      = &(sceneObject){ .obj_ptr = NULL };
     hitRecord   closest_hit_record   = { .t = FLT_MAX };
 
-    for(int i=0; scene_objects[i].obj_ptr != NULL; i++)
+    //TODO move object
+    for(current_object = scene_objects;
+        current_object != NULL;
+        current_object = current_object->next_scene_obj)
     {
+        if (current_object->obj_ptr == NULL) {
+            printf("obj_ptr is null");
+            continue;
+        }
         hitRecord tmp_hit_record;
-        switch(scene_objects[i].obj_type)
+        switch(current_object->obj_type)
         {
             case CAMERA:
                 break;
             case SPHERE:
-                if(hit_sphere(ray_, scene_objects[i], closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
+                if(hit_sphere(ray_, *current_object, closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
                 {
                     memcpy(&closest_hit_record, &tmp_hit_record, sizeof(hitRecord));
-                    closest_object = &scene_objects[i];
+                    closest_object = current_object;
                 }
                 break;
             case POLYGON_MESH:
-                if(hit_polygon_mesh(ray_, scene_objects[i], closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
+                if(hit_polygon_mesh(ray_, *current_object, closest_intersection, FLT_MAX, &tmp_hit_record) && tmp_hit_record.t < closest_hit_record.t)
                 {
                     memcpy(&closest_hit_record, &tmp_hit_record, sizeof(hitRecord));
-                    closest_object = &scene_objects[i];
+                    closest_object = current_object;
                 }
                 break;
             case WIRE:
@@ -275,7 +309,7 @@ void trace_ray(ray ray_, vec3 out_color, int level)
 
 void render_frame()
 {
-    sceneObject *cam = &scene_objects[0];
+    sceneObject *cam = scene_objects;
 
     gal_clear_screen();
     for (int y=0; y<WINDOW_HEIGHT; y+=1)

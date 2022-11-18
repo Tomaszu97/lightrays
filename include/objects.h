@@ -6,15 +6,18 @@
 
 typedef enum
 {
-    CAMERA,
+    CAMERA = 0,
     SPHERE,
     POLYGON_MESH,
     WIRE,
     LIGHT_SOURCE
 } objectType;
 
-typedef struct
+typedef struct sceneObject sceneObject;
+struct sceneObject
 {
+    int id;
+    float scale;
     vec3 pos;
     vec3 dir;
     vec3 dir_up;
@@ -22,7 +25,8 @@ typedef struct
     materialType material;
     objectType obj_type;
     void *obj_ptr;
-} sceneObject;
+    sceneObject *next_scene_obj;
+};
 
 typedef struct
 {

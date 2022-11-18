@@ -1,0 +1,7 @@
++shell interface created capable of creating spheres and loading obj files, managing objects, moving scaling etc (also camera) no input handling like previously
+
++ prepare a simple demo using shell and obj files only
+
++ goal achieved!
+
+

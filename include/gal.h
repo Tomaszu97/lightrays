@@ -3,6 +3,7 @@
 #define GAL_H
 #include "common.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_timer.h>
 
 SDL_Event event;
 SDL_Renderer *renderer;

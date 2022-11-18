@@ -1,0 +1,25 @@
+# object 0 is a camera # make this object in shell everytime or in C - think
+# adfter creating object return its id
+# ---
+
+# create primitive
+pr <primitive_index>
+
+# load object from obj file and return its id
+ld <filename>
+
+# set object material
+ma <id> <material_index>
+
+# set object color
+co <id> <red> <green> <blue>
+
+# move object
+mv <id> [x] [y] [z]
+
+# scale object
+sc <id> [x] [y] [z]
+
+# rotate object
+ro <id> [degx] [degy] [degz]
+ro <id> [vecx] [vecy] [vecz] [deg]
