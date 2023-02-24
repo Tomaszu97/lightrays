@@ -40,6 +40,31 @@ void gal_draw_pixel(unsigned int x,
             .w=WINDOW_SCALE,
             .h=WINDOW_SCALE
         });
+    if ((x % WINDOW_WIDTH) == 0) printf("\n");
+    if (x  == 0 && y == 0) /*printf("\e[1;1H\e[2J");*/
+    {
+        int i=WINDOW_HEIGHT;
+        for (;i--;)
+            printf("\033[F");
+    }
+
+    float br = ((float)r+(float)g+(float)b)/3;
+    if (br < 16) printf("  ");
+    else if (br < 32) printf(" .");
+    else if (br < 48) printf("..");
+    else if (br < 64) printf(" -");
+    else if (br < 80) printf("--");
+    else if (br < 96) printf("==");
+    else if (br < 112) printf("=u");
+    else if (br < 128) printf("uu");
+    else if (br < 144) printf("u0");
+    else if (br < 160) printf("00");
+    else if (br < 176) printf("0+");
+    else if (br < 192) printf("++");
+    else if (br < 208) printf("+#");
+    else if (br < 224) printf("##");
+    else if (br < 240) printf("#@");
+    else printf("@@");
 }
 
 void gal_flip_screen()

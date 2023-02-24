@@ -27,7 +27,7 @@ int main(void)
         counter++;
         if(delta_t != 0 && counter%5==0)
         {
-            printf("FPS=%.2f\n", 1000/(delta_t));
+            //printf("FPS=%.2f\n", 1000/(delta_t));
             //printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam->pos[0], cam->pos[1], cam->pos[2]);
         }
 

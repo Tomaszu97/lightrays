@@ -46,7 +46,7 @@ bool load_alloc_obj(polygonMesh *dst, char *filename)
                         if (res == 3)
                         {
                             // temporary hardcoded scaling
-                            int scale=10;
+                            int scale=200;
                             dst->vertices[vtc_idx][0] *= scale;
                             dst->vertices[vtc_idx][1] *= scale;
                             dst->vertices[vtc_idx][2] *= scale;
