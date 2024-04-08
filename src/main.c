@@ -71,7 +71,7 @@ int main(void)
         // SDL_RenderClear(renderer);
         for (int y=0; y<WINDOW_HEIGHT; y+=1)
         {
-            printf("%d\n",y);
+            //printf("%d\n",y);
             for (int x=0; x<WINDOW_WIDTH; x+=1)
             {
                 vec3 color[ANTIALIASING_LEVEL];
@@ -121,8 +121,8 @@ int main(void)
         counter++;
         if(delta_t != 0 && counter%5==0)
         {
-            printf("FPS=%.2f\n", 1000/(delta_t));
-            printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam_obj->pos[0], cam_obj->pos[1], cam_obj->pos[2]);
+            //printf("FPS=%.2f\n", 1000/(delta_t));
+            //printf("CAM X:%.2f\tY%.2fZ%.2f\n", cam_obj->pos[0], cam_obj->pos[1], cam_obj->pos[2]);
         }
         if (SDL_PollEvent(&event))
         {
