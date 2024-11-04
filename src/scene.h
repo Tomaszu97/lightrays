@@ -3,10 +3,10 @@
 
 #include "objects.h"
 
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 320
+#define WINDOW_WIDTH 160
+#define WINDOW_HEIGHT 100
 #define ANTIALIASING_LEVEL 1
-#define WINDOW_SCALE 2
+#define WINDOW_SCALE 3
 
 //TODO make all non raw scene_objects static
 camera cam =
