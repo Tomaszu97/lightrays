@@ -23,7 +23,7 @@ int main(void)
     // rotate_object(&scene_objects[1], 90, 0, 0);
 
     //this code is trash you never free resources for that
-    FILE *f = fopen("models/diamond.obj", "r");
+    FILE *f = fopen("/usr/share/lightrays_models/diamond.obj", "r");
     bool invert_winding = false;
     int scale = 20;
     int max_vertex_count=200000;
